@@ -33,7 +33,7 @@ Point it at a business system or module (source code, API docs, or a functional 
 npx skills add jaggerxzj/digital-employee-skills
 
 # Direct install, global scope
-npx skills add jaggerxzj/digital-employee-skills --skill digital-employee-builder-en -g
+npx skills add jaggerxzj/digital-employee-skills --skill digital-employee-builder -g
 ```
 
 Works with 40+ agents including Claude Code, Cursor, OpenCode, and Kimi Code CLI.
@@ -50,7 +50,7 @@ The agent will walk through: business analysis → role modeling → workspace g
 
 ```
 skills/
-└── digital-employee-builder-en/
+└── digital-employee-builder/
     ├── SKILL.md                      # Main workflow (7 steps)
     ├── references/
     │   ├── script-encapsulation.md   # Script porting patterns & engineering standards
