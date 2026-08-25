@@ -1,0 +1,160 @@
+---
+name: digital-employee-builder
+description: "Build a runnable Agent digital employee from a business codebase or business-function description. Input a business system/module (source code, API docs, or functional spec); output a complete digital-employee workspace — AGENTS.md (operating rules), SOUL.md (persona), IDENTITY.md, USER.md, TOOLS.md, HEARTBEAT.md, an MCP server wrapping business capabilities, per-workflow Skills — plus steps to onboard, run, and verify it in OpenClaw (default) or other harness frameworks (Claude Code, Cursor, custom). Triggers: digital employee, business-code-to-agent, turn a business system into an agent, SOUL.md, AGENTS.md, OpenClaw agent workspace, agent-ify a business function."
+---
+
+# Digital Employee Builder (Business Code → Digital Employee)
+
+Turn a business capability into an agent employee with identity, rules, tools, and a runtime.
+
+## Overall Workflow (execute in order)
+
+```
+Business input → 1. Analysis → 2. Role modeling → 3. Workspace → 4. MCP wrapping → 5. Skills (with scripts) → 6. Onboarding & verification
+```
+
+## Core Principle 1: Runtime Self-Containment (highest priority)
+
+The employee workspace gets deployed standalone into the OpenClaw/harness runtime — **the business codebase does not exist on that machine**. Therefore:
+
+- Nothing in the workspace (scripts, skills, config) may reference business source code via `sys.path`, absolute paths, or relative paths (e.g. `../../service`) — source code is read at build time for porting; at runtime there is zero source dependency.
+- **Default to porting the business logic fully into the script** (Pattern C) so the script itself is the implementation: zero network dependency, immune to business-API flakiness, timeouts, and interface changes. Only when the user explicitly confirms a reliable runtime channel should you fall back to calling the deployed API (Pattern A) or a published SDK package (Pattern B).
+- After generation, verify in a clean environment without the business codebase (see the step-6 checklist).
+
+## Core Principle 2: Deterministic Logic Lives in Code
+
+Prompts are suggestions; code is the guardrail. Route every capability point through this table before wrapping:
+
+| Capability shape | Packaging | Why |
+|---|---|---|
+| Single atomic call, no branching (queries, one-step writes) | MCP tool (step 4) | Thin wrapper suffices; no flow to enforce |
+| Fixed-order multi-step flows with validation/branching/rollback (refunds, approvals, reconciliation) | **Executable script in the skill's `scripts/`** (step 5), ported/orchestrated from the business code | Ordering, validation, and exception branches are enforced by code — the model cannot skip steps |
+| Steps requiring comprehension, judgment, or content generation (interpreting reports, drafting replies) | Prompt orchestration in SKILL.md | That is the model's job anyway |
+
+A common failure: writing a multi-step business flow as prose steps in SKILL.md and letting the model call tools step by step — the model may skip steps, reorder them, or drop validations. **Whatever if/else, state machines, and validation rules exist in the business code must still exist as code after wrapping.**
+
+Script-porting patterns and engineering standards: `references/script-encapsulation.md` — required reading for step 5.
+
+## Step 0: Confirm Inputs & Target
+
+Confirm three things before starting (ask the user if missing):
+
+1. **Business input**: a codebase path, API docs, or a functional description — any one suffices. With only a functional description, build the MCP part as stub tools plus integration notes.
+2. **Employee positioning**: name, who it serves, one-sentence mandate. If the user doesn't provide these, propose them based on the analysis.
+3. **Target harness**: OpenClaw by default. If the user names another framework (Claude Code, Cursor, custom harness), read `references/harness-adapters.md`.
+4. **Runtime access channel**: how will the employee's runtime environment reach the business system? **Default is full porting (Pattern C), which needs no network channel** — only consider Patterns A/B when the user explicitly states the runtime can reliably reach the business API/SDK; in that case confirm network reachability and credential provisioning. When Pattern C involves data residency (script-managed storage replacing the business database), confirm data ownership and sync strategy with the user.
+
+## Step 1: Business Analysis
+
+Read the business code and produce a **business capability inventory** — the basis for every artifact that follows. Extract:
+
+- **Capability points**: HTTP routes / service methods / CLI commands / cron jobs. For each: name, inputs, outputs, side effects (read vs. write), and **packaging route** (MCP tool / script / prompt, per the routing table above; for multi-step flows also record the source file and function location in the business code for step-5 porting).
+- **Role boundaries**: what this employee should do and must never do (write ops, money movement, deletions default to "requires human confirmation").
+- **Domain terms & rules**: state machines, enums, core business rules (e.g., "an order can be cancelled only before payment").
+- **Credentials & dependencies**: databases, third-party APIs, internal service URLs — record only how they are referenced; never write secrets into any artifact.
+
+Write the inventory as a table in `docs/business-capabilities.md` in the workspace for Skills to reference.
+
+## Step 2: Role Modeling
+
+Map the capability inventory to the employee's identity using three mapping rules:
+
+- Mandate → SOUL.md Identity/Expertise + AGENTS.md Scope rules
+- Boundaries → AGENTS.md approval gates and forbidden zone (dangerous ops require human confirmation)
+- Audience → initial entries in USER.md
+
+Persona tone follows the business context: customer-facing → polite and restrained; internal ops → direct and efficient; finance/compliance → rigorous and conservative.
+
+## Step 3: Generate the Workspace
+
+Use `assets/workspace/` as templates to generate the full directory (default output: `./digital-employees/<employee-name>/`):
+
+```
+<employee-name>/
+├── AGENTS.md        # Operating rules: session startup, scope, approval gates, forbidden zone
+├── SOUL.md          # Persona: identity, tone, expertise, boundaries
+├── IDENTITY.md      # Name, emoji, one-line role
+├── USER.md          # Audience profile (initial skeleton)
+├── TOOLS.md         # Environment notes: MCP server, ports, credential variable names
+├── HEARTBEAT.md     # Periodic tasks (optional; omit if no periodic needs)
+├── memory/          # Empty dir; the employee writes daily logs at runtime
+├── skills/          # Generated in step 5
+├── mcp-server/      # Generated in step 4
+└── docs/business-capabilities.md  # Capability inventory from step 1
+```
+
+Template usage notes (templates in `assets/workspace/*.tmpl`; OpenClaw field details in `references/openclaw-workspace.md`):
+
+- **One file, one concern**: rules → AGENTS.md, tone → SOUL.md, environment → TOOLS.md. Never duplicate content across files — duplication edited in one place but not the other inevitably creates conflicting instructions.
+- **Keep it short**: these files are injected into every session context. Keep AGENTS.md/SOUL.md under ~150 lines each and put critical rules near the top (OpenClaw truncates at 20,000 chars per file by default).
+- AGENTS.md must include: a session-startup checklist (read SOUL/USER/today's memory), business scope, the approval-required operation list, and how to escalate on failure or uncertainty.
+
+## Step 4: MCP Wrapping
+
+Wrap the capability points from the inventory as an MCP server so the harness can invoke the business system as tools. Templates:
+
+- Python: `assets/mcp-server-python/server.py.tmpl` (FastMCP — preferred, fewest dependencies)
+- TypeScript: `assets/mcp-server-ts/server.ts.tmpl` (use when the business system itself is Node/TS)
+
+Wrapping rules:
+
+1. **One capability point = one MCP tool**. Tool names are verb phrases (`query_order`, `create_refund`); descriptions state parameter meanings and side effects.
+2. **Read/write tiering**: query tools are open directly; write tools say "confirm with the user before executing" in their description and are mirrored in AGENTS.md's approval list.
+3. **Thin wrapper**: each tool only validates params + calls the existing business interface (HTTP client or imported module). Never copy business logic.
+4. **Credentials via env vars**: the server reads env at startup; TOOLS.md records variable names only.
+5. **Generate config snippets**: write the onboarding config for this MCP server into `docs/harness-setup.md` (OpenClaw openclaw.json mcpServers snippet, Claude Code .mcp.json, Cursor mcp.json — formats in `references/harness-adapters.md`).
+
+Then actually start the server once (send an initialize request for stdio, or curl a health check for HTTP) and confirm tools/list returns every capability point. If it won't start, fix it — never deliver an MCP server that doesn't run.
+
+## Step 5: Generate Skills (Script-First)
+
+Generate workspace skills for business workflows (templates in `assets/skill-template/`, including `SKILL.md.tmpl` and `scripts/workflow.py.tmpl`). Each skill takes one of two shapes per the routing table:
+
+**A. Script-driven (multi-step deterministic flows — the default)**
+
+```
+skills/<workflow-name>/
+├── SKILL.md            # Thin shell: triggers, parameters, how to run the script, output interpretation
+└── scripts/
+    └── <workflow>.py   # Executable ported/orchestrated from business code; holds ALL deterministic logic
+```
+
+- Extract scripts from the business code using the patterns in `references/script-encapsulation.md`. **Default is Pattern C: port the business logic fully into the script** (zero network dependency, most reliable); fall back to Pattern A (orchestrate the deployed API) or Pattern B (published SDK) only when the user explicitly confirms a reliable runtime channel. In all three patterns the script must be self-contained — **no sys.path/path references to business source code**. Never deliver a flow as a fresh natural-language description alone.
+- Scripts must cover **every validation and branch** the business code has for that flow (state-machine checks, amount caps, duplicate-submission guards); validation failure exits non-zero with a clear error message.
+- Dangerous flows ship a `--dry-run` flag (validate only). Approval gates in AGENTS.md still apply: dry-run first, show the user, then execute for real.
+- SKILL.md states only: the run command, each parameter's meaning and valid values, the meaning of the script's JSON output fields, and exit codes with their remedies. No prose steps for the model to orchestrate — orchestration already happened inside the script.
+- **Run every generated script for real** (test environment or mocked business interface) before delivery; nothing ships that doesn't execute.
+
+**B. Prompt-orchestrated (judgment-heavy flows)**
+
+- Anything a single tool call completes gets no skill.
+- The body covers steps, exception branches, and which MCP tools are involved.
+
+**Common constraint**: workspace skills reference only this employee's MCP tools, scripts/, and docs/ — no external environment dependencies.
+
+## Step 6: Onboarding & Verification
+
+Provide complete onboarding steps in `docs/harness-setup.md` and verify each item:
+
+**OpenClaw (default)**:
+1. Place the workspace at `~/.openclaw/workspace-<employee-name>/` (or register as a standalone agent: `openclaw agents add <employee-name>` pointing at the workspace)
+2. Add the MCP server config to openclaw.json
+3. Run `openclaw agent prompt` to preview the assembled system prompt; confirm AGENTS/SOUL inject cleanly with no truncation
+4. Smoke-test dialogue: ask its identity (verifies SOUL), issue a read-only business request (verifies MCP), trigger a write op (verifies approval gates)
+
+**Verification checklist** (check every item before delivery):
+- [ ] **Clean-environment test**: copy the workspace alone into a directory/container without the business codebase; scripts and MCP server start and run there (no source-path references in scripts)
+- [ ] Workspace-wide grep: no `sys.path.insert`, no absolute/relative paths into the business repo, no hardcoded secrets
+- [ ] MCP server starts; tools/list is complete
+- [ ] Every script actually runs (including --dry-run and at least one exception branch)
+- [ ] Spot-check one flow: in-script validations/branches match the source business code, no logic dropped
+- [ ] Workspace files within character budgets; no cross-file role mixing
+- [ ] Every dangerous operation has a human-confirmation gate
+- [ ] All three smoke-test dialogues pass
+
+## References
+
+- `references/script-encapsulation.md` — **Core**: script-porting patterns and engineering standards for business code (required reading for step 5)
+- `references/openclaw-workspace.md` — OpenClaw workspace file spec, loading mechanics, character budgets
+- `references/harness-adapters.md` — Onboarding formats for Claude Code / Cursor / generic harnesses
+- `references/mcp-integration.md` — MCP protocol essentials and wrapping details
