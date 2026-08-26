@@ -42,7 +42,7 @@ Works with 40+ agents including Claude Code, Cursor, OpenCode, and Kimi Code CLI
 
 Once installed, give your agent the business codebase and a role:
 
-> "Turn the order-management module in ./aps-backend into a digital employee named ops-agent, running on OpenClaw."
+> "Turn the order-management module in ./service into a digital employee named ops-agent, running on OpenClaw."
 
 The agent will walk through: business analysis → role modeling → workspace generation → MCP wrapping → script-driven skills → onboarding & verification.
 

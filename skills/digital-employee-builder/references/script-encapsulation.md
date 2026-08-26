@@ -16,7 +16,7 @@ How to extract business-code workflows into executable skill `scripts/`. Require
 
 The employee workspace is deployed into the OpenClaw/harness runtime — **the business source code does not exist on that machine**. This sets hard constraints:
 
-- Scripts must not use `sys.path.insert`, `os.chdir` into a source tree, or any absolute/relative path pointing at the business repo (e.g. `../../aps-backend`). Source code is reference material **at build time**; it does not exist **at runtime**.
+- Scripts must not use `sys.path.insert`, `os.chdir` into a source tree, or any absolute/relative path pointing at the business repo (e.g. `../../service`). Source code is reference material **at build time**; it does not exist **at runtime**.
 - **The default is to port the business logic fully into the script** (Pattern C), making the script itself the implementation: zero network dependency, immune to business-API flakiness, timeouts, expired credentials, and interface changes — an API is an inherently unreliable external dependency, so eliminate it when you can.
 - Only when the user explicitly confirms a reliable runtime channel should you fall back to the other two: **the deployed business API** (Pattern A, network calls) or **an SDK formally published to a package registry** (Pattern B, pip/npm release).
 - The choice is driven by the "runtime access channel" confirmed in step 0.
