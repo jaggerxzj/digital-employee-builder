@@ -10,8 +10,12 @@ Turn a business capability into an agent employee with identity, rules, tools, a
 ## Overall Workflow (execute in order)
 
 ```
-Business input → 1. Analysis → 2. Role modeling → 3. Workspace → 4. MCP wrapping → 5. Skills (with scripts) → 6. Onboarding & verification
+Business input → 1. Interactive analysis → ⛔ Gate 1: capability sign-off → 2. Role modeling → 2.5 Plan proposal → ⛔ Gate 2: plan sign-off → 3. Workspace → 4. MCP wrapping → 5. Skills (with scripts) → 6. Onboarding & verification
 ```
+
+## Confirmation Gates (hard stops)
+
+Gates 1 and 2 are **stop-and-wait points, not notifications**. At each gate: present the artifact in the conversation, let the user add/remove/adjust, and re-present after every revision round. Only an explicit approval ("approved / looks good / go ahead") unlocks the next step — silence or ambiguous replies mean not approved. Only after approval may the artifact be written into the workspace (`docs/business-capabilities.md` for Gate 1, `docs/employee-plan.md` for Gate 2) — create the workspace directory ahead of step 3 if needed to hold these approved docs. Never start generation (steps 3–6) before Gate 2 approval.
 
 ## Core Principle 1: Runtime Self-Containment (highest priority)
 
@@ -40,20 +44,26 @@ Script-porting patterns and engineering standards: `references/script-encapsulat
 Confirm three things before starting (ask the user if missing):
 
 1. **Business input**: a codebase path, API docs, or a functional description — any one suffices. With only a functional description, build the MCP part as stub tools plus integration notes.
-2. **Employee positioning**: name, who it serves, one-sentence mandate. If the user doesn't provide these, propose them based on the analysis.
+2. **Employee positioning**: name, who it serves, one-sentence mandate. If the user doesn't provide these, do NOT ask here — step 2.5 will propose them for confirmation at Gate 2.
 3. **Target harness**: OpenClaw by default. If the user names another framework (Claude Code, Cursor, custom harness), read `references/harness-adapters.md`.
 4. **Runtime access channel**: how will the employee's runtime environment reach the business system? **Default is full porting (Pattern C), which needs no network channel** — only consider Patterns A/B when the user explicitly states the runtime can reliably reach the business API/SDK; in that case confirm network reachability and credential provisioning. When Pattern C involves data residency (script-managed storage replacing the business database), confirm data ownership and sync strategy with the user.
 
-## Step 1: Business Analysis
+## Step 1: Interactive Business Analysis
 
-Read the business code and produce a **business capability inventory** — the basis for every artifact that follows. Extract:
+Work through the business code interactively and produce a **business capability inventory** — the basis for every artifact that follows. Interaction protocol:
 
-- **Capability points**: HTTP routes / service methods / CLI commands / cron jobs. For each: name, inputs, outputs, side effects (read vs. write), and **packaging route** (MCP tool / script / prompt, per the routing table above; for multi-step flows also record the source file and function location in the business code for step-5 porting).
-- **Role boundaries**: what this employee should do and must never do (write ops, money movement, deletions default to "requires human confirmation").
-- **Domain terms & rules**: state machines, enums, core business rules (e.g., "an order can be cancelled only before payment").
-- **Credentials & dependencies**: databases, third-party APIs, internal service URLs — record only how they are referenced; never write secrets into any artifact.
-
-Write the inventory as a table in `docs/business-capabilities.md` in the workspace for Skills to reference.
+1. **Read first, ask second**: read the business code/docs thoroughly before asking anything (prefer CodeGraph when the repo is indexed, plus API docs and READMEs). Never spend the user's time on questions the code can answer.
+2. **Ask as you go**: the moment you hit ambiguity — an endpoint's purpose is unclear, business rules contradict, a capability's inclusion is questionable — ask immediately with AskUserQuestion. Every question must carry your own inference as the default option; never throw an open-ended question at the user.
+3. **Extract the inventory**:
+   - **Capability points**: HTTP routes / service methods / CLI commands / cron jobs. For each: name, inputs, outputs, side effects (read vs. write), and **packaging route** (MCP tool / script / prompt, per the routing table above; for multi-step flows also record the source file and function location in the business code for step-5 porting).
+   - **Role boundaries**: what this employee should do and must never do (write ops, money movement, deletions default to "requires human confirmation").
+   - **Domain terms & rules**: state machines, enums, core business rules (e.g., "an order can be cancelled only before payment").
+   - **Credentials & dependencies**: databases, third-party APIs, internal service URLs — record only how they are referenced; never write secrets into any artifact.
+4. **⛔ Gate 1: capability sign-off** — hard stop (see Confirmation Gates above):
+   - Present the full inventory in the conversation as a table: capability | inputs/outputs | read/write | packaging route | source location.
+   - Attach explicit inclusion recommendations: what you propose to include, what you propose to exclude and why (e.g., "destructive ops should be excluded or dry-run-only").
+   - The user may add, remove, or adjust entries; re-present the updated inventory after each revision round.
+   - Only on explicit approval, write the inventory as a table in `docs/business-capabilities.md` in the workspace for Skills to reference — then proceed to step 2.
 
 ## Step 2: Role Modeling
 
@@ -65,7 +75,22 @@ Map the capability inventory to the employee's identity using three mapping rule
 
 Persona tone follows the business context: customer-facing → polite and restrained; internal ops → direct and efficient; finance/compliance → rigorous and conservative.
 
+The mapping outputs are a **draft proposal** for step 2.5 — do not write them into any workspace file yet.
+
+## Step 2.5: Plan Proposal (⛔ Gate 2)
+
+Based on the approved capability inventory, present a complete employee plan in the conversation — a hard stop (see Confirmation Gates above). The plan has four blocks:
+
+1. **Employee positioning**: name, audience, one-sentence mandate, persona tone (with reasoning, e.g. "finance context → rigorous and conservative").
+2. **Functional scope**: what the employee will do / explicitly will not do (forbidden zone and the operations requiring human confirmation).
+3. **MCP tool list**: for each tool — name (verb phrase), read/write, purpose, and the capability point it wraps.
+4. **Skills list**: for each skill — name, trigger scenario, shape (script-driven / prompt-orchestrated), and the business workflow it covers.
+
+The user may adjust any block; update the plan and re-present after each revision round. Only on explicit approval of all four blocks, write the plan to `docs/employee-plan.md` in the workspace — it becomes the authoritative spec for steps 3–6. Never start generation before this approval.
+
 ## Step 3: Generate the Workspace
+
+Generate everything according to the approved plan in `docs/employee-plan.md` — positioning, scope, and approval gates come from there, not from re-derivation.
 
 Use `assets/workspace/` as templates to generate the full directory (default output: `./digital-employees/<employee-name>/`):
 
@@ -80,7 +105,8 @@ Use `assets/workspace/` as templates to generate the full directory (default out
 ├── memory/          # Empty dir; the employee writes daily logs at runtime
 ├── skills/          # Generated in step 5
 ├── mcp-server/      # Generated in step 4
-└── docs/business-capabilities.md  # Capability inventory from step 1
+├── docs/business-capabilities.md  # Capability inventory from step 1 (Gate-1 approved)
+└── docs/employee-plan.md          # Approved plan from step 2.5 (Gate 2)
 ```
 
 Template usage notes (templates in `assets/workspace/*.tmpl`; OpenClaw field details in `references/openclaw-workspace.md`):
@@ -91,7 +117,7 @@ Template usage notes (templates in `assets/workspace/*.tmpl`; OpenClaw field det
 
 ## Step 4: MCP Wrapping
 
-Wrap the capability points from the inventory as an MCP server so the harness can invoke the business system as tools. Templates:
+Wrap exactly the MCP tool list approved in `docs/employee-plan.md` as an MCP server — no additions, no omissions. Templates:
 
 - Python: `assets/mcp-server-python/server.py.tmpl` (FastMCP — preferred, fewest dependencies)
 - TypeScript: `assets/mcp-server-ts/server.ts.tmpl` (use when the business system itself is Node/TS)
@@ -108,7 +134,7 @@ Then actually start the server once (send an initialize request for stdio, or cu
 
 ## Step 5: Generate Skills (Script-First)
 
-Generate workspace skills for business workflows (templates in `assets/skill-template/`, including `SKILL.md.tmpl` and `scripts/workflow.py.tmpl`). Each skill takes one of two shapes per the routing table:
+Generate workspace skills per the skills list approved in `docs/employee-plan.md` (templates in `assets/skill-template/`, including `SKILL.md.tmpl` and `scripts/workflow.py.tmpl`). Each skill takes one of two shapes per the routing table:
 
 **A. Script-driven (multi-step deterministic flows — the default)**
 
@@ -143,6 +169,7 @@ Provide complete onboarding steps in `docs/harness-setup.md` and verify each ite
 4. Smoke-test dialogue: ask its identity (verifies SOUL), issue a read-only business request (verifies MCP), trigger a write op (verifies approval gates)
 
 **Verification checklist** (check every item before delivery):
+- [ ] Generated MCP tools and Skills match `docs/employee-plan.md` exactly — nothing added, nothing dropped
 - [ ] **Clean-environment test**: copy the workspace alone into a directory/container without the business codebase; scripts and MCP server start and run there (no source-path references in scripts)
 - [ ] Workspace-wide grep: no `sys.path.insert`, no absolute/relative paths into the business repo, no hardcoded secrets
 - [ ] MCP server starts; tools/list is complete
