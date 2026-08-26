@@ -30,10 +30,10 @@ Point it at a business system or module (source code, API docs, or a functional 
 
 ```bash
 # Interactive — pick the skill, agents, and scope
-npx skills add jaggerxzj/digital-employee-skills
+npx skills add jaggerxzj/digital-employee-builder
 
 # Direct install, global scope
-npx skills add jaggerxzj/digital-employee-skills --skill digital-employee-builder -g
+npx skills add jaggerxzj/digital-employee-builder --skill digital-employee-builder -g
 ```
 
 Works with 40+ agents including Claude Code, Cursor, OpenCode, and Kimi Code CLI.
