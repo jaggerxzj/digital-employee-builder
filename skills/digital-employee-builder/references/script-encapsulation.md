@@ -59,6 +59,7 @@ api("POST", "/refunds", json={...})
 ```
 
 - API base URL and credentials come from env vars (`BUSINESS_API_BASE`, `BUSINESS_API_TOKEN`); zero hardcoding in scripts.
+- If the API (or one of its endpoints) exists only as an approved proposal in `docs/business-api-proposals.md`, code against the contract with a stub backend behind an env var (e.g. `BUSINESS_API_STUB=true`) until the business side deploys — format and lifecycle in `references/business-api-proposals.md`.
 - When the business API lacks flow-level endpoints (e.g. no "refund" endpoint, only low-level CRUD), the multi-step CRUD orchestration and its validations belong in the script — that is exactly why the script exists.
 
 ### Pattern B: Published SDK Dependency (optional — when the vendor ships a formal package and the user confirms it)

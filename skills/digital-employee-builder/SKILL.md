@@ -10,12 +10,12 @@ Turn a business capability into an agent employee with identity, rules, tools, a
 ## Overall Workflow (execute in order)
 
 ```
-Business input → 1. Interactive analysis → ⛔ Gate 1: capability sign-off → 2. Role modeling → 2.5 Plan proposal → ⛔ Gate 2: plan sign-off → 3. Workspace → 4. MCP wrapping → 5. Skills (with scripts) → 6. Onboarding & verification
+Business input → 1. Interactive analysis (incl. interface-gap proposals) → ⛔ Gate 1: capability & proposal sign-off → 2. Role modeling → 2.5 Plan proposal → ⛔ Gate 2: plan sign-off → 3. Workspace → 4. MCP wrapping → 5. Skills (with scripts) → 6. Onboarding & verification
 ```
 
 ## Confirmation Gates (hard stops)
 
-Gates 1 and 2 are **stop-and-wait points, not notifications**. At each gate: present the artifact in the conversation, let the user add/remove/adjust, and re-present after every revision round. Only an explicit approval ("approved / looks good / go ahead") unlocks the next step — silence or ambiguous replies mean not approved. Only after approval may the artifact be written into the workspace (`docs/business-capabilities.md` for Gate 1, `docs/employee-plan.md` for Gate 2) — create the workspace directory ahead of step 3 if needed to hold these approved docs. Never start generation (steps 3–6) before Gate 2 approval.
+Gates 1 and 2 are **stop-and-wait points, not notifications**. At each gate: present the artifact in the conversation, let the user add/remove/adjust, and re-present after every revision round. Only an explicit approval ("approved / looks good / go ahead") unlocks the next step — silence or ambiguous replies mean not approved. Only after approval may the artifact be written into the workspace (`docs/business-capabilities.md` — plus `docs/business-api-proposals.md` when interface gaps exist — for Gate 1, `docs/employee-plan.md` for Gate 2) — create the workspace directory ahead of step 3 if needed to hold these approved docs. Never start generation (steps 3–6) before Gate 2 approval.
 
 ## Core Principle 1: Runtime Self-Containment (highest priority)
 
@@ -32,18 +32,30 @@ Prompts are suggestions; code is the guardrail. Route every capability point thr
 | Capability shape | Packaging | Why |
 |---|---|---|
 | Single atomic call, no branching (queries, one-step writes) | MCP tool (step 4) | Thin wrapper suffices; no flow to enforce |
-| Fixed-order multi-step flows with validation/branching/rollback (refunds, approvals, reconciliation) | **Executable script in the skill's `scripts/`** (step 5), ported/orchestrated from the business code | Ordering, validation, and exception branches are enforced by code — the model cannot skip steps |
+| Fixed-order multi-step flows with validation/branching/rollback (refunds, approvals, reconciliation) | **Executable script in the skill's `scripts/`** (step 5), ported/orchestrated from the business code — or, when the user opts for MCP-only packaging, a **composite tool** in the MCP server (step 4) | Ordering, validation, and exception branches are enforced by code — the model cannot skip steps |
 | Steps requiring comprehension, judgment, or content generation (interpreting reports, drafting replies) | Prompt orchestration in SKILL.md | That is the model's job anyway |
+| Any capability whose business-side interface is missing or inadequate | **Modification proposal** in `docs/business-api-proposals.md` (Core Principle 3), then build against the approved contract | The builder never modifies business code; contract-first keeps the build unblocked |
 
 A common failure: writing a multi-step business flow as prose steps in SKILL.md and letting the model call tools step by step — the model may skip steps, reorder them, or drop validations. **Whatever if/else, state machines, and validation rules exist in the business code must still exist as code after wrapping.**
 
 Script-porting patterns and engineering standards: `references/script-encapsulation.md` — required reading for step 5.
 
+## Core Principle 3: Never Modify Business Code — Propose, Agree, Build Against the Contract
+
+The build pipeline is **read-only against the business codebase**. When a capability cannot be packaged because the business side lacks the needed interface (no flow-level endpoint for a Pattern A / composite-tool flow, a query the system computes but never exposes, missing idempotency keys), do not work around it — and never patch the business code yourself. Instead:
+
+1. Draft a **modification proposal** (format: `references/business-api-proposals.md`): the interface to add (REST endpoint / MCP server / SDK module) with the full parameter contract — request/response schemas, error codes, auth, idempotency.
+2. Get explicit user confirmation at Gate 1; approved proposals are written to `docs/business-api-proposals.md` (revisions are re-presented like any gate artifact).
+3. Build the employee side **against the approved contract immediately**, with the client behind a stub backend switchable by env var — the build never blocks on the business team.
+4. The business team implements and deploys on their own schedule; on deployment, flip the stub off and re-run the live smoke test. The proposal doc tracks each item's lifecycle (`proposed → approved → implemented → deployed → verified`).
+
+Pattern C ports rarely trigger this (scripts are self-contained); API-consuming routes and data-sync needs do.
+
 ## Step 0: Confirm Inputs & Target
 
 Confirm three things before starting (ask the user if missing):
 
-1. **Business input**: a codebase path, API docs, or a functional description — any one suffices. With only a functional description, build the MCP part as stub tools plus integration notes.
+1. **Business input**: a codebase path, API docs, or a functional description — any one suffices. With only a functional description, build the MCP part as stub tools plus integration notes, and record the proposed interfaces in `docs/business-api-proposals.md` (Core Principle 3).
 2. **Employee positioning**: name, who it serves, one-sentence mandate. If the user doesn't provide these, do NOT ask here — step 2.5 will propose them for confirmation at Gate 2.
 3. **Target harness**: OpenClaw by default. If the user names another framework (Claude Code, Cursor, custom harness), read `references/harness-adapters.md`.
 4. **Runtime access channel**: how will the employee's runtime environment reach the business system? **Default is full porting (Pattern C), which needs no network channel** — only consider Patterns A/B when the user explicitly states the runtime can reliably reach the business API/SDK; in that case confirm network reachability and credential provisioning. When Pattern C involves data residency (script-managed storage replacing the business database), confirm data ownership and sync strategy with the user.
@@ -59,11 +71,13 @@ Work through the business code interactively and produce a **business capability
    - **Role boundaries**: what this employee should do and must never do (write ops, money movement, deletions default to "requires human confirmation").
    - **Domain terms & rules**: state machines, enums, core business rules (e.g., "an order can be cancelled only before payment").
    - **Credentials & dependencies**: databases, third-party APIs, internal service URLs — record only how they are referenced; never write secrets into any artifact.
-4. **⛔ Gate 1: capability sign-off** — hard stop (see Confirmation Gates above):
+   - **Interface gaps**: for any capability point whose chosen packaging route needs a business-side interface that doesn't exist or is inadequate (a flow with no flow-level endpoint, a query not exposed, missing idempotency keys), draft a modification proposal per Core Principle 3 — proposed interface, full parameter contract, rationale, alternatives considered.
+4. **⛔ Gate 1: capability & proposal sign-off** — hard stop (see Confirmation Gates above):
    - Present the full inventory in the conversation as a table: capability | inputs/outputs | read/write | packaging route | source location.
+   - Present every interface-gap proposal with its draft contract (shape, parameters, returns, error codes, idempotency) — the user confirms both the content and that the business team can take it on.
    - Attach explicit inclusion recommendations: what you propose to include, what you propose to exclude and why (e.g., "destructive ops should be excluded or dry-run-only").
    - The user may add, remove, or adjust entries; re-present the updated inventory after each revision round.
-   - Only on explicit approval, write the inventory as a table in `docs/business-capabilities.md` in the workspace for Skills to reference — then proceed to step 2.
+   - Only on explicit approval, write the inventory as a table in `docs/business-capabilities.md` and the proposals (when any) in `docs/business-api-proposals.md` — then proceed to step 2.
 
 ## Step 2: Role Modeling
 
@@ -83,7 +97,7 @@ Based on the approved capability inventory, present a complete employee plan in 
 
 1. **Employee positioning**: name, audience, one-sentence mandate, persona tone (with reasoning, e.g. "finance context → rigorous and conservative").
 2. **Functional scope**: what the employee will do / explicitly will not do (forbidden zone and the operations requiring human confirmation).
-3. **MCP tool list**: for each tool — name (verb phrase), read/write, purpose, and the capability point it wraps.
+3. **MCP tool list**: for each tool — name (verb phrase), read/write, purpose, and the capability point it wraps. Mark tools waiting on an approved proposal as `contract-pending: <proposal-id>` so scope expectations are explicit.
 4. **Skills list**: for each skill — name, trigger scenario, shape (script-driven / prompt-orchestrated), and the business workflow it covers.
 
 The user may adjust any block; update the plan and re-present after each revision round. Only on explicit approval of all four blocks, write the plan to `docs/employee-plan.md` in the workspace — it becomes the authoritative spec for steps 3–6. Never start generation before this approval.
@@ -106,7 +120,8 @@ Use `assets/workspace/` as templates to generate the full directory (default out
 ├── skills/          # Generated in step 5
 ├── mcp-server/      # Generated in step 4
 ├── docs/business-capabilities.md  # Capability inventory from step 1 (Gate-1 approved)
-└── docs/employee-plan.md          # Approved plan from step 2.5 (Gate 2)
+├── docs/employee-plan.md          # Approved plan from step 2.5 (Gate 2)
+└── docs/business-api-proposals.md # Business-side modification proposals (Gate-1 approved; omit if no gaps)
 ```
 
 Template usage notes (templates in `assets/workspace/*.tmpl`; OpenClaw field details in `references/openclaw-workspace.md`):
@@ -126,9 +141,15 @@ Wrapping rules:
 
 1. **One capability point = one MCP tool**. Tool names are verb phrases (`query_order`, `create_refund`); descriptions state parameter meanings and side effects.
 2. **Read/write tiering**: query tools are open directly; write tools say "confirm with the user before executing" in their description and are mirrored in AGENTS.md's approval list.
-3. **Thin wrapper**: each tool only validates params + calls the existing business interface (HTTP client or imported module). Never copy business logic.
+3. **Thin wrapper** (atomic tools): each tool only validates params + calls the existing business interface (HTTP client or imported module). Never copy business logic — composite flow tools (rule 6) are the deliberate, disciplined exception.
 4. **Credentials via env vars**: the server reads env at startup; TOOLS.md records variable names only.
 5. **Generate config snippets**: write the onboarding config for this MCP server into `docs/harness-setup.md` (OpenClaw openclaw.json mcpServers snippet, Claude Code .mcp.json, Cursor mcp.json — formats in `references/harness-adapters.md`).
+6. **Composite tools for flows** (when the user opts for MCP-only packaging): a multi-step flow becomes ONE flow-level tool (`process_refund`) whose server code holds the whole orchestration — every validation, branch, ordering, and compensation step from the business code (run the Porting Checklist from `references/script-encapsulation.md` over this code). Requirements:
+   - `dry_run` parameter, default `true` for dangerous flows — the server-side equivalent of the script `--dry-run` convention.
+   - Never expose the underlying write-CRUD as standalone tools: read CRUD stays open, writes happen only through composite tools, so the model physically cannot hand-assemble a write flow. Mirror "flows go through composite tools only" in AGENTS.md.
+   - The server now carries business logic: provenance comments (`# Ported from src/services/refund.py::process_refund`) and mapping registration in `docs/business-capabilities.md`, exactly as script ports do. Flow changes mean editing + redeploying the server — call this trade-off out when the user chooses this route; missing flow-level interfaces on the business side go through Core Principle 3 proposals.
+   - Engineering details and example: `references/mcp-integration.md` → Composite Tools.
+7. **Contract-first tools** (pending proposals): implement tools waiting on an approved proposal strictly against the contract in `docs/business-api-proposals.md` — parameters, response fields, error codes verbatim. Point the client at a stub backend behind an env var (e.g. `BUSINESS_API_STUB=true`) so the server starts and passes smoke tests before the business side deploys; record stubbed tools in TOOLS.md and `docs/harness-setup.md`. On deployment, flip the env var and re-run the smoke test — the tool definition must not change.
 
 Then actually start the server once (send an initialize request for stdio, or curl a health check for HTTP) and confirm tools/list returns every capability point. If it won't start, fix it — never deliver an MCP server that doesn't run.
 
@@ -150,6 +171,7 @@ skills/<workflow-name>/
 - Dangerous flows ship a `--dry-run` flag (validate only). Approval gates in AGENTS.md still apply: dry-run first, show the user, then execute for real.
 - SKILL.md states only: the run command, each parameter's meaning and valid values, the meaning of the script's JSON output fields, and exit codes with their remedies. No prose steps for the model to orchestrate — orchestration already happened inside the script.
 - **Run every generated script for real** (test environment or mocked business interface) before delivery; nothing ships that doesn't execute.
+- **Contract-first**: if a scripted flow depends on a business interface covered by a pending proposal, code against the approved contract with a stub backend behind an env var (same convention as step 4 rule 7) — or defer that skill to post-deployment; record the choice in the proposal doc.
 
 **B. Prompt-orchestrated (judgment-heavy flows)**
 
@@ -178,10 +200,14 @@ Provide complete onboarding steps in `docs/harness-setup.md` and verify each ite
 - [ ] Workspace files within character budgets; no cross-file role mixing
 - [ ] Every dangerous operation has a human-confirmation gate
 - [ ] All three smoke-test dialogues pass
+- [ ] `docs/business-api-proposals.md` (when present) covers every interface gap; each proposal has explicit user confirmation and a current lifecycle status
+- [ ] Every contract-pending tool/script runs against its stub; parameters, response fields, and error codes match the approved proposal verbatim
+- [ ] Stub-mode flags and the post-deployment flip + live re-verification steps are recorded in `docs/harness-setup.md`
 
 ## References
 
 - `references/script-encapsulation.md` — **Core**: script-porting patterns and engineering standards for business code (required reading for step 5)
+- `references/business-api-proposals.md` — Modification-proposal format, contract minimums, stub discipline, lifecycle (required reading when the business side lacks interfaces)
 - `references/openclaw-workspace.md` — OpenClaw workspace file spec, loading mechanics, character budgets
 - `references/harness-adapters.md` — Onboarding formats for Claude Code / Cursor / generic harnesses
 - `references/mcp-integration.md` — MCP protocol essentials and wrapping details

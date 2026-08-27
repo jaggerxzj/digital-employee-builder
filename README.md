@@ -16,13 +16,14 @@ Point it at a business system or module (source code, API docs, or a functional 
 ├── HEARTBEAT.md       # Periodic tasks (optional)
 ├── skills/            # Script-driven workflow skills
 ├── mcp-server/        # MCP server wrapping atomic business capabilities
-└── docs/              # Business capability inventory + harness setup guide
+└── docs/              # Capability inventory, business-API proposals, harness setup guide
 ```
 
 ### Core Design Decisions
 
-- **Deterministic logic lives in code, not prompts.** Atomic capabilities become MCP tools; multi-step business workflows (refunds, approvals, reconciliation) become executable `scripts/` ported from the business code — ordering, validation, and branching are enforced by code, so the model cannot skip steps.
+- **Deterministic logic lives in code, not prompts.** Atomic capabilities become MCP tools; multi-step business workflows (refunds, approvals, reconciliation) become executable `scripts/` ported from the business code (or composite MCP tools when MCP-only packaging is preferred) — ordering, validation, and branching are enforced by code, so the model cannot skip steps.
 - **Runtime self-containment.** The workspace deploys standalone into the harness runtime, where the business codebase does not exist. Scripts never reference business source via `sys.path` or file paths. Business logic is **fully ported into scripts by default** (zero network dependency, immune to API flakiness); calling a deployed API or a published SDK is an opt-in fallback.
+- **Never modifies business code — contract-first instead.** When the business side lacks a needed interface, the builder writes a modification proposal (`docs/business-api-proposals.md`) with a full parameter contract; the employee side is built against the approved contract behind a stub backend, and goes live once the business team implements and deploys.
 - **Harness-native onboarding.** Ships with the OpenClaw workspace spec (character budgets, injection order, truncation pitfalls), plus adapters for Claude Code (`CLAUDE.md` / `.mcp.json`), Cursor (`.mdc` rules), and generic harnesses.
 - **Safety gates by default.** Write operations require explicit human confirmation; every script supports `--dry-run`; secrets come from environment variables only; a clean-environment verification checklist runs before delivery.
 
@@ -54,6 +55,7 @@ skills/
     ├── SKILL.md                      # Main workflow (7 steps)
     ├── references/
     │   ├── script-encapsulation.md   # Script porting patterns & engineering standards
+    │   ├── business-api-proposals.md # Business-code modification proposals & contract lifecycle
     │   ├── openclaw-workspace.md     # OpenClaw workspace spec
     │   ├── mcp-integration.md        # MCP wrapping essentials
     │   └── harness-adapters.md       # Claude Code / Cursor / generic harness adapters
