@@ -1,17 +1,23 @@
 # TOOLS.md — Environment Notes
 
-<!-- Record WHERE things are, not HOW to behave (rules live in AGENTS.md); never write secret values — variable names only -->
+<!-- Record locations and configuration, not operating behavior. Never include secret values. -->
 
-## MCP Server
+## Embedded Runtime
 
-- `{{employee_name}}-tools`: {{transport stdio/http}}, entrypoint {{command or URL}}
-- Required env vars: `BUSINESS_API_BASE`, `BUSINESS_API_TOKEN` (values injected at runtime)
+- Package: `{{runtime package name}}`, installed from `runtime/`
+- Local data: `EMPLOYEE_DATA_PATH` → {{database/file purpose}}
+- Migrations/startup: {{command}}
 
-## Business Systems
+## Local MCP Server
 
-- {{system name}} console: {{URL}}
-- {{system name}} API docs: {{URL or docs/ path}}
+- `{{employee_name}}-tools`: {{transport}}, entrypoint {{command or local URL}}
+- Tool inventory and side effects: `docs/business-capabilities.md`
 
-## Other Dependencies
+## External Adapters
 
-- {{database / message queue / third-party service}}: {{address or reference}}
+{{list only adapters retained in docs/migration-plan.md, e.g.:}}
+- {{adapter name}}: required env vars `{{ENV_VAR_NAMES}}`; purpose {{inherently external effect}}
+
+## Verification
+
+- Setup and last verified commands: `docs/harness-setup.md`

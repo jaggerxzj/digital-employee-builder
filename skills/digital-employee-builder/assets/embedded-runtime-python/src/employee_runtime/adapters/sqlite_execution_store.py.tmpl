@@ -1,0 +1,83 @@
+"""SQLite audit and idempotency scaffold for single-node runtimes.
+
+For dangerous writes, compose this state with the business repository through
+one unit of work, or replace it with the source outbox/reconciliation design.
+"""
+
+from datetime import datetime, timezone
+import json
+from pathlib import Path
+import sqlite3
+from typing import Any
+from uuid import uuid4
+
+
+class SQLiteExecutionStore:
+    def __init__(self, database_path: str) -> None:
+        self._path = Path(database_path)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._migrate()
+
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self._path, isolation_level=None)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    def _migrate(self) -> None:
+        with self._connect() as connection:
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS execution_idempotency (
+                    key TEXT PRIMARY KEY,
+                    state TEXT NOT NULL,
+                    result TEXT,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS execution_audit (
+                    id TEXT PRIMARY KEY,
+                    event TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                """
+            )
+
+    def get_result(self, key: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT result FROM execution_idempotency WHERE key = ? AND state = 'complete'",
+                (key,),
+            ).fetchone()
+        return None if row is None else json.loads(row["result"])
+
+    def reserve(self, key: str) -> bool:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                connection.execute(
+                    "INSERT INTO execution_idempotency (key, state, updated_at) VALUES (?, 'reserved', ?)",
+                    (key, now),
+                )
+                connection.execute("COMMIT")
+                return True
+            except sqlite3.IntegrityError:
+                connection.execute("ROLLBACK")
+                return False
+
+    def complete(self, key: str, result: dict[str, Any]) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE execution_idempotency SET state = 'complete', result = ?, updated_at = ? WHERE key = ?",
+                (json.dumps(result, ensure_ascii=False), now, key),
+            )
+
+    def append(self, event: dict[str, Any]) -> str:
+        audit_id = str(uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO execution_audit (id, event, created_at) VALUES (?, ?, ?)",
+                (audit_id, json.dumps(event, ensure_ascii=False), now),
+            )
+        return audit_id

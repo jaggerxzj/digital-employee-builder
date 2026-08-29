@@ -24,7 +24,7 @@ Follow this file when generating a digital-employee workspace. Target: OpenClaw 
 | `SOUL.md` | Persona: identity, tone, expertise, values, boundaries | Every session |
 | `USER.md` | Audience profile: preferences, background, communication style (dated, imperative entries) | Every session (~4,000-char budget) |
 | `IDENTITY.md` | Employee name, emoji, one-line role | Every session |
-| `TOOLS.md` | Environment notes: service URLs, MCP servers, credential **variable names** (does not control tool availability) | Every session |
+| `TOOLS.md` | Environment notes: embedded runtime, local MCP server, data path, external-adapter credential **variable names** | Every session |
 | `HEARTBEAT.md` | Periodic task list (executed on heartbeat; keep under 50 lines) | Every session + heartbeat |
 | `MEMORY.md` | Distilled long-term memory (injected in main sessions only, not group chats) | Main session |
 | `memory/YYYY-MM-DD.md` | Daily logs, append-only | Today + yesterday read at startup |
@@ -52,6 +52,12 @@ Follow this file when generating a digital-employee workspace. Target: OpenClaw 
 # Register the digital employee as a standalone agent
 openclaw agents add <employee-name>   # workspace at ~/.openclaw/workspace-<employee-name>/
 
+# Register the employee's local stdio MCP server under mcp.servers
+openclaw mcp set <employee-name>-tools '{"command":"python","args":["<absolute-workspace>/mcp-server/server.py"],"env":{"EMPLOYEE_DATA_PATH":"<absolute-workspace>/data/employee.db"}}'
+
+# Validate configuration and prove initialize + tools/list
+openclaw mcp doctor <employee-name>-tools --probe
+
 # Channel routing in openclaw.json (example snippet)
 {
   "agents": {
@@ -64,3 +70,23 @@ openclaw agents add <employee-name>   # workspace at ~/.openclaw/workspace-<empl
 # Preview the system prompt (verify injection)
 openclaw agent prompt
 ```
+
+The equivalent `~/.openclaw/openclaw.json` shape is:
+
+```json5
+{
+  mcp: {
+    servers: {
+      "<employee-name>-tools": {
+        command: "python",
+        args: ["<absolute-workspace>/mcp-server/server.py"],
+        env: {
+          EMPLOYEE_DATA_PATH: "<absolute-workspace>/data/employee.db"
+        }
+      }
+    }
+  }
+}
+```
+
+Use absolute workspace paths. Add environment variables only for adapters approved in `docs/migration-plan.md`; keep their values out of workspace files. Record `openclaw mcp doctor --probe` and representative tool-call results in `docs/harness-setup.md`.

@@ -1,24 +1,20 @@
-# Business-API Modification Proposals — {{employee_name}}
+# External Contract Proposals — {{employee_name}}
 
-<!-- Template note: one ## section per proposal. The builder never modifies business code — this doc is the contract between the employee workspace and the business team: the employee side builds against it behind a stub, the business team implements and deploys against it. Omit this file when step 1 surfaces no interface gaps. Format rules: references/business-api-proposals.md -->
+<!-- Omit when all approved capabilities are local or already have adequate external contracts. -->
 
-Status lifecycle: `proposed → approved → implemented → deployed → verified` (`rejected` / `dropped` with a note)
+## {{BP-001 — title}}
 
-## BP-001 {{proposal title, e.g. "Add flow-level refund endpoint"}}
-
-- **Status**: proposed
-- **Source capability point**: {{inventory entry this unblocks, e.g. "refund flow"}}
-- **Current state**: {{what exists today and why it is insufficient — cite endpoints, tables, or source files}}
-- **Proposed change**: {{the interface to add: REST endpoint / query exposure / MCP server module / SDK package}}
+- **Status**: proposed / approved / implemented / deployed / verified / rejected / dropped
+- **User task / runtime port**: {{task and port}}
+- **Current limitation**: {{evidence and why the retained external dependency is inadequate}}
+- **Proposed interface**: {{HTTP / MCP / SDK / event / synchronization contract}}
 - **Contract**:
-  - Shape: {{e.g. HTTP POST /refunds | MCP tool process_refund | sdk.refunds.create()}}
-  - Request: {{every parameter: name, type, required?, constraints, valid values/enums}}
-  - Response: {{success schema field by field; pagination fields for list endpoints}}
-  - Errors: {{enumerated error codes + meaning + HTTP status mapping}}
-  - Side effects: {{reads vs writes; state transitions; downstream triggers}}
-  - Auth: {{credential env var names the employee side will hold, e.g. BUSINESS_API_TOKEN}}
-  - Idempotency: {{idempotency-key parameter or natural dedupe key; safe-retry semantics}}
-  - Non-goals: {{what this interface explicitly will not do}}
-- **Rationale & alternatives**: {{why this shape; what was rejected and why}}
-- **Employee-side impact**: {{MCP tools / scripts depending on this; stub plan}}
-- **Confirmed by / date**: {{approver, YYYY-MM-DD (Gate 1)}}
+  - Request: {{fields, types, constraints}}
+  - Response: {{success schema and pagination}}
+  - Errors: {{codes, retryability, transport mapping}}
+  - Effects: {{state transitions and downstream effects}}
+  - Auth env vars: `{{ENV_VAR_NAMES}}`
+  - Idempotency/reconciliation: {{semantics}}
+  - Non-goals: {{excluded behavior}}
+- **Employee-side adapter and fake**: {{implementation and test plan}}
+- **Risk-gate approval**: {{approver and date}}

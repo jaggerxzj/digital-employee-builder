@@ -1,0 +1,70 @@
+"""Task-oriented application services for {{employee_name}}.
+
+Preserve/adapt the approved source domain modules under this package. This
+module wires them into user-task methods; it is the single entrypoint used by
+local MCP tools and workflow scripts.
+"""
+
+import os
+from typing import Any
+
+from .adapters.sqlite_repository import SQLite{{BusinessObject}}Repository
+from .adapters.sqlite_execution_store import SQLiteExecutionStore
+from .ports import (
+    AuditSink,
+    DomainError,
+    ExternalEffectPort,
+    IdempotencyStore,
+    {{BusinessObject}}Repository,
+)
+
+
+class EmployeeApplication:
+    def __init__(
+        self,
+        repository: {{BusinessObject}}Repository,
+        audit_sink: AuditSink,
+        idempotency_store: IdempotencyStore,
+        external_effect: ExternalEffectPort | None = None,
+    ) -> None:
+        self._repository = repository
+        self._audit_sink = audit_sink
+        self._idempotency_store = idempotency_store
+        self._external_effect = external_effect
+
+    @classmethod
+    def from_environment(cls) -> "EmployeeApplication":
+        data_path = os.environ.get("EMPLOYEE_DATA_PATH", "data/employee.db")
+        execution_store = SQLiteExecutionStore(data_path)
+        return cls(
+            repository=SQLite{{BusinessObject}}Repository(data_path),
+            audit_sink=execution_store,
+            idempotency_store=execution_store,
+            external_effect={{construct approved external adapter or None}},
+        )
+
+    def {{query_task}}(self, object_id: str) -> dict[str, Any]:
+        record = self._repository.get(object_id)
+        if record is None:
+            raise DomainError("NOT_FOUND", f"No record found for {object_id}")
+        return record
+
+    def {{write_task}}(
+        self,
+        command: dict[str, Any],
+        *,
+        dry_run: bool,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        """Call the preserved/adapted source application service here.
+
+        Keep validation, state transitions, and idempotency in the shared
+        runtime. Do not repeat them in MCP or script entrypoints.
+        """
+        result = {{ported_application_service}}(
+            repository=self._repository,
+            audit_sink=self._audit_sink,
+            idempotency_store=self._idempotency_store,
+            external_effect=self._external_effect,
+        ).execute(command, dry_run=dry_run, idempotency_key=idempotency_key)
+        return result.to_dict()

@@ -1,0 +1,48 @@
+"""Runtime-owned ports. Adapt names and types from the source domain."""
+
+from dataclasses import dataclass
+from typing import Any, Protocol
+
+
+@dataclass(frozen=True)
+class DomainError(Exception):
+    code: str
+    message: str
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class DependencyError(Exception):
+    code: str
+    message: str
+    adapter: str
+    retryable: bool = False
+    correlation_id: str | None = None
+
+
+class {{BusinessObject}}Repository(Protocol):
+    def get(self, object_id: str) -> dict[str, Any] | None: ...
+
+    def save(self, record: dict[str, Any]) -> None: ...
+
+
+class ExternalEffectPort(Protocol):
+    """Keep only when the approved migration plan retains an external effect."""
+
+    def execute(self, request: dict[str, Any], idempotency_key: str) -> dict[str, Any]: ...
+
+
+class AuditSink(Protocol):
+    def append(self, event: dict[str, Any]) -> str:
+        """Persist an event and return its audit/correlation ID."""
+        ...
+
+
+class IdempotencyStore(Protocol):
+    def get_result(self, key: str) -> dict[str, Any] | None: ...
+
+    def reserve(self, key: str) -> bool:
+        """Atomically reserve a new key; false means it already exists."""
+        ...
+
+    def complete(self, key: str, result: dict[str, Any]) -> None: ...

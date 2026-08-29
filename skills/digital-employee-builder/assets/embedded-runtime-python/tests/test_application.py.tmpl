@@ -1,0 +1,66 @@
+"""Adapt source tests first; keep this task-level test as an entrypoint example."""
+
+from employee_runtime.application import EmployeeApplication
+from employee_runtime.ports import DomainError
+
+
+class FakeRepository:
+    def __init__(self, records=None):
+        self.records = {record["id"]: record for record in (records or [])}
+
+    def get(self, object_id):
+        return self.records.get(object_id)
+
+    def save(self, record):
+        self.records[record["id"]] = record
+
+
+class FakeExecutionStore:
+    def __init__(self):
+        self.results = {}
+        self.audit = []
+
+    def get_result(self, key):
+        return self.results.get(key)
+
+    def reserve(self, key):
+        if key in self.results:
+            return False
+        self.results[key] = None
+        return True
+
+    def complete(self, key, result):
+        self.results[key] = result
+
+    def append(self, event):
+        self.audit.append(event)
+        return f"audit-{len(self.audit)}"
+
+
+def test_{{query_task}}_returns_local_domain_record():
+    execution_store = FakeExecutionStore()
+    app = EmployeeApplication(
+        FakeRepository([{"id": "example-1", "status": "ready"}]),
+        audit_sink=execution_store,
+        idempotency_store=execution_store,
+    )
+
+    result = app.{{query_task}}("example-1")
+
+    assert result == {"id": "example-1", "status": "ready"}
+
+
+def test_{{query_task}}_reports_domain_error_for_missing_record():
+    execution_store = FakeExecutionStore()
+    app = EmployeeApplication(
+        FakeRepository(),
+        audit_sink=execution_store,
+        idempotency_store=execution_store,
+    )
+
+    try:
+        app.{{query_task}}("missing")
+    except DomainError as error:
+        assert error.code == "NOT_FOUND"
+    else:
+        raise AssertionError("Expected NOT_FOUND")

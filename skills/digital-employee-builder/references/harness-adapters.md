@@ -1,58 +1,51 @@
-# Harness Adapters: Onboarding Outside OpenClaw
+# Harness Adapters
 
-When the target harness is not OpenClaw, use the file mappings and MCP config formats below.
-
-## Contents
-
-- [Claude Code](#claude-code)
-- [Cursor](#cursor)
-- [Generic / Custom Harnesses](#generic--custom-harnesses)
+Use only when the target harness is not OpenClaw. Install the embedded runtime before registering its local MCP server.
 
 ## Claude Code
 
-Workspace file mapping:
+Workspace mapping:
 
-| OpenClaw file | Claude Code equivalent |
+| Employee artifact | Claude Code equivalent |
 |---|---|
-| AGENTS.md + SOUL.md merged | Project-root `CLAUDE.md` (rules first, persona after, single file) |
-| IDENTITY.md / USER.md | Merged into corresponding CLAUDE.md sections |
-| TOOLS.md | Environment section of CLAUDE.md |
+| AGENTS.md + SOUL.md | project-root `CLAUDE.md` |
+| IDENTITY.md / USER.md | corresponding CLAUDE.md sections |
+| TOOLS.md | environment section |
 | skills/ | `.claude/skills/<name>/SKILL.md` |
-| HEARTBEAT.md | No native equivalent; simulate with cron + `claude -p "<HEARTBEAT content>"` |
+| HEARTBEAT.md | external scheduler calling `claude -p` |
 
-MCP config (project-root `.mcp.json`):
+Install and configure:
+
+```bash
+python -m pip install -e <absolute-workspace>/runtime
+python -m pip install "mcp[cli]"
+```
 
 ```json
 {
   "mcpServers": {
     "<employee-name>-tools": {
-      "command": "python3",
-      "args": ["<absolute-path>/mcp-server/server.py"],
-      "env": { "BUSINESS_API_BASE": "https://...", "BUSINESS_API_TOKEN": "..." }
+      "command": "python",
+      "args": ["<absolute-workspace>/mcp-server/server.py"],
+      "env": { "EMPLOYEE_DATA_PATH": "<absolute-workspace>/data/employee.db" }
     }
   }
 }
 ```
 
-Verify: `claude mcp list` shows the server registered and connected.
+Add environment variables only for adapters retained in `docs/migration-plan.md`. Verify with `claude mcp list` and a representative local tool call.
 
 ## Cursor
 
-Workspace file mapping:
+- Merge AGENTS.md and SOUL.md into `.cursor/rules/<employee-name>.mdc` with `alwaysApply: true`.
+- Convert each required workspace skill into a focused `.mdc` rule.
+- Use the same local runtime installation and MCP configuration shape as Claude Code in `.cursor/mcp.json`.
+- Use an external scheduler for heartbeat behavior.
 
-| OpenClaw file | Cursor equivalent |
-|---|---|
-| AGENTS.md + SOUL.md | `.cursor/rules/<employee-name>.mdc` (frontmatter `alwaysApply: true`) |
-| skills/ | No native equivalent; split each SKILL.md into its own `.mdc` rule with a trigger description |
-| HEARTBEAT.md | None; requires external scheduling |
+## Generic Harness
 
-MCP config (`~/.cursor/mcp.json` or project `.cursor/mcp.json`; same format as Claude Code's `.mcp.json`).
-
-## Generic / Custom Harnesses
-
-Any harness supporting "system prompt + tool list" can onboard the employee:
-
-1. **System prompt assembly order**: SOUL.md → IDENTITY.md → USER.md → AGENTS.md → TOOLS.md (persona first, rules after, most-volatile memory content last).
-2. **MCP onboarding**: register the stdio or HTTP server via the harness's MCP client. If MCP is unsupported, fall back to function-calling: export each tool's JSON Schema from the server's tools/list and register manually.
-3. **Heartbeat**: for harnesses without a built-in heartbeat, use system cron/scheduled jobs to trigger a "read HEARTBEAT.md and execute" session.
-4. Document the actual onboarding steps and verification results for that framework in `docs/harness-setup.md`.
+1. Assemble the system context from SOUL.md, IDENTITY.md, USER.md, AGENTS.md, and TOOLS.md without duplicating sections.
+2. Install the runtime from its dependency manifest.
+3. Register the local stdio MCP server. If MCP is unavailable, expose the same application-service methods through the harness's typed function interface.
+4. Schedule HEARTBEAT.md only when periodic work was approved.
+5. Record exact setup commands, adapter variables, and verification results in `docs/harness-setup.md`.

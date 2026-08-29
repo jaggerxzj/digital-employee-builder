@@ -1,76 +1,73 @@
 # Digital Employee Builder
 
-Turn a business codebase into a **runnable Agent digital employee** — a self-contained workspace with identity, rules, tools, and workflows, ready to run on OpenClaw, Claude Code, Cursor, or any MCP-capable harness.
+Turn a completed business project into a **self-contained Agent digital employee**. The generated employee embeds reusable domain and application code, exposes task-oriented local tools, and retains external adapters only for effects or authoritative systems that cannot live locally.
 
-## What It Does
+## What It Produces
 
-Point it at a business system or module (source code, API docs, or a functional spec) and it produces a complete digital-employee workspace:
-
-```
+```text
 <employee-name>/
-├── AGENTS.md          # Operating rules: scope, approval gates, forbidden zone
-├── SOUL.md            # Persona: identity, tone, expertise, boundaries
-├── IDENTITY.md        # Name, emoji, one-line role
-├── USER.md            # Audience profile
-├── TOOLS.md           # Environment notes and credential variable names
-├── HEARTBEAT.md       # Periodic tasks (optional)
-├── skills/            # Script-driven workflow skills
-├── mcp-server/        # MCP server wrapping atomic business capabilities
-└── docs/              # Capability inventory, business-API proposals, harness setup guide
+├── AGENTS.md / SOUL.md / IDENTITY.md / USER.md
+├── runtime/             # preserved/adapted business kernel and migrated tests
+├── mcp-server/          # local task-oriented MCP entrypoints
+├── skills/              # judgment guidance and optional workflow entrypoints
+├── memory/
+└── docs/
+    ├── migration-plan.md
+    ├── business-capabilities.md
+    ├── employee-plan.md
+    └── harness-setup.md
 ```
 
-### Core Design Decisions
+## Core Design
 
-- **Deterministic logic lives in code, not prompts.** Atomic capabilities become MCP tools; multi-step business workflows (refunds, approvals, reconciliation) become executable `scripts/` ported from the business code (or composite MCP tools when MCP-only packaging is preferred) — ordering, validation, and branching are enforced by code, so the model cannot skip steps.
-- **Runtime self-containment.** The workspace deploys standalone into the harness runtime, where the business codebase does not exist. Scripts never reference business source via `sys.path` or file paths. Business logic is **fully ported into scripts by default** (zero network dependency, immune to API flakiness); calling a deployed API or a published SDK is an opt-in fallback.
-- **Never modifies business code — contract-first instead.** When the business side lacks a needed interface, the builder writes a modification proposal (`docs/business-api-proposals.md`) with a full parameter contract; the employee side is built against the approved contract behind a stub backend, and goes live once the business team implements and deploys.
-- **Harness-native onboarding.** Ships with the OpenClaw workspace spec (character budgets, injection order, truncation pitfalls), plus adapters for Claude Code (`CLAUDE.md` / `.mcp.json`), Cursor (`.mdc` rules), and generic harnesses.
-- **Safety gates by default.** Write operations require explicit human confirmation; every script supports `--dry-run`; secrets come from environment variables only; a clean-environment verification checklist runs before delivery.
+- **Agent-native capability.** Existing domain models, rules, workflows, migrations, and tests become a shared embedded runtime instead of being reimplemented as prompts or many remote APIs.
+- **Preserve before rewriting.** Modules are classified as `preserve`, `adapt`, `replace`, `externalize`, or `drop`; source tests migrate with preserved behavior.
+- **One business implementation.** Local MCP tools and workflow scripts call the same runtime and never maintain independent copies of business rules.
+- **User-task tools.** Tool boundaries follow business outcomes, not controllers, routes, tables, or service methods.
+- **Explicit external adapters.** Payments, email, carriers, identity providers, and external-authoritative data remain behind runtime-owned ports when necessary.
+- **Standalone verification.** The employee is installed and tested without the source repository, with traceability from approved user tasks to runtime code and tests.
 
 ## Install
 
 ```bash
-# Interactive — pick the skill, agents, and scope
+# Interactive
 npx skills add jaggerxzj/digital-employee-builder
 
-# Direct install, global scope
+# Direct, global install
 npx skills add jaggerxzj/digital-employee-builder --skill digital-employee-builder -g
 ```
 
-Works with 40+ agents including Claude Code, Cursor, OpenCode, and Kimi Code CLI.
-
 ## Usage
 
-Once installed, give your agent the business codebase and a role:
+> “Turn the completed order-management project in `./service` into a standalone operations employee. Preserve its business capabilities locally and keep only unavoidable payment and notification integrations external.”
 
-> "Turn the order-management module in ./service into a digital employee named ops-agent, running on OpenClaw."
-
-The agent will walk through: business analysis → role modeling → workspace generation → MCP wrapping → script-driven skills → onboarding & verification.
+The builder scans the project before asking questions, presents a concise migration blueprint, gets one normal approval, then generates and verifies the employee. A separate risk gate appears only for data-ownership changes, destructive/real-world writes, new external contracts, or sensitive-data movement.
 
 ## Repository Structure
 
-```
-skills/
-└── digital-employee-builder/
-    ├── SKILL.md                      # Main workflow (7 steps)
-    ├── references/
-    │   ├── script-encapsulation.md   # Script porting patterns & engineering standards
-    │   ├── business-api-proposals.md # Business-code modification proposals & contract lifecycle
-    │   ├── openclaw-workspace.md     # OpenClaw workspace spec
-    │   ├── mcp-integration.md        # MCP wrapping essentials
-    │   └── harness-adapters.md       # Claude Code / Cursor / generic harness adapters
-    └── assets/
-        ├── workspace/*.tmpl          # AGENTS.md, SOUL.md, IDENTITY.md, ... templates
-        ├── skill-template/           # Thin-shell SKILL.md + workflow script templates
-        ├── mcp-server-python/        # FastMCP server template
-        └── mcp-server-ts/            # TypeScript MCP server template
+```text
+skills/digital-employee-builder/
+├── SKILL.md
+├── references/
+│   ├── conversation-protocol.md
+│   ├── migration-analysis.md
+│   ├── embedded-runtime.md
+│   ├── script-encapsulation.md
+│   ├── mcp-integration.md
+│   └── harness adapters and workspace specifications
+└── assets/
+    ├── embedded-runtime-python/
+    ├── mcp-server-python/ and mcp-server-ts/
+    ├── skill-template/
+    └── workspace/
 ```
 
-## Safety Notes
+## Safety
 
-- Generated scripts are thin, auditable wrappers — review them before connecting real credentials.
-- Never commit secrets; all templates use environment variables.
-- Dangerous operations ship with human-confirmation gates and `--dry-run` support.
+- The source business project is read-only input.
+- Generated workspaces contain no source-repository paths or secrets.
+- Dangerous effects require confirmation, dry-run where meaningful, idempotency, and audit evidence.
+- External adapters and data ownership remain visible in `docs/migration-plan.md`.
 
 ## License
 

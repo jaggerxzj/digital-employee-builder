@@ -1,0 +1,44 @@
+# Harness Setup and Verification — {{employee_name}}
+
+## Clean Environment
+
+- Workspace copy: `{{clean workspace path}}`
+- Source repository absent: {{verification command and result}}
+- Runtime language/version: {{version}}
+
+## Install Embedded Runtime
+
+```bash
+{{runtime install command, e.g. python -m pip install ./runtime}}
+{{runtime test command}}
+```
+
+## Register Local MCP Server
+
+```json
+{{selected harness MCP configuration}}
+```
+
+- Required local env vars: `EMPLOYEE_DATA_PATH`
+- External-adapter env vars: `{{only approved variable names}}`
+
+## Verification Results
+
+| Check | Command | Result |
+|---|---|---|
+| Runtime tests | `{{command}}` | {{pass/fail and count}} |
+| Migrated source tests | `{{command}}` | {{pass/fail and count}} |
+| MCP initialize and tools/list | `{{command}}` | {{tool count}} |
+| Representative read call | `{{command}}` | {{result}} |
+| Domain rejection | `{{command}}` | {{structured error}} |
+| Write dry-run | `{{command}}` | {{planned effect}} |
+| Idempotent confirmed write | `{{command}}` | {{audit ID/result}} |
+| External-adapter failure | `{{command}}` | {{retryability/reconciliation result}} |
+
+## Data Cutover
+
+{{Omit when data ownership does not change. Otherwise record integrity checks, delta capture, cutover, rollback, and reconciliation evidence.}}
+
+## Known Limitations
+
+- {{limitation or retained external dependency}}

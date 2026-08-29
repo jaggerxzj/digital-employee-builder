@@ -1,0 +1,35 @@
+# Migration Plan — {{employee_name}}
+
+- Source project: `{{project identifier}}`
+- Source revision: `{{commit or version}}`
+- Target harness: `{{harness}}`
+- Runtime language/package: `{{language and package}}`
+
+## Module Decisions
+
+| Source symbol/module | User task | Decision | Runtime target | State/dependencies | Source tests | Risk/notes |
+|---|---|---|---|---|---|---|
+| `{{source}}` | {{task}} | preserve/adapt/replace/externalize/drop | `{{target}}` | {{state/deps}} | `{{tests}}` | {{notes}} |
+
+## Data Ownership
+
+| Dataset | Ownership | Storage/adapter | Migration or refresh | Retention/recovery |
+|---|---|---|---|---|
+| {{dataset}} | employee-owned/imported snapshot/external-authoritative/ephemeral | {{location}} | {{procedure}} | {{policy}} |
+
+## External Adapters
+
+| Port | External system/effect | Why retained | Credentials | Failure/idempotency | Fake used in tests |
+|---|---|---|---|---|---|
+| {{port}} | {{system}} | {{reason}} | `{{ENV_VAR_NAMES}}` | {{semantics}} | {{fake}} |
+
+## Test Migration and Traceability
+
+| User task | Runtime service | Source tests migrated | New parity/entrypoint tests | Status |
+|---|---|---|---|---|
+| {{task}} | `{{service}}` | `{{source tests}}` | `{{new tests}}` | planned/passing |
+
+## Explicit Exclusions
+
+- {{dropped module or unsupported behavior}} — {{reason}}
+
