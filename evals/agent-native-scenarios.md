@@ -33,3 +33,21 @@ The source project owns local order state but calls an external payment provider
 
 Expected behavior: embed order rules, workflows, repository abstraction, migrations, and tests; retain the payment provider as an explicit external adapter; require confirmation, dry-run, and idempotency for payment execution.
 
+## Scenario D: Role artifact quality
+
+The source project is a B2B order and refund system. The employee serves an internal order-operations team and can query orders, assess refund eligibility, execute confirmed refunds with dry-run/idempotency/audit, and explain domain rejections. Paid orders are refundable; refunds cannot exceed the refundable balance; real payment effects require approval. The team prefers conclusions first and traceable evidence.
+
+Score one point for each behavior in the generated AGENTS.md, SOUL.md, and IDENTITY.md:
+
+- Uses at least three source-grounded domain facts instead of generic agent adjectives.
+- States a concrete mandate and three observable success outcomes.
+- Separates autonomous, recommend-only, approval-required, and forbidden decisions.
+- Defines an operating loop from request understanding through evidence-backed completion.
+- Maps user tasks to local entrypoints and states completion evidence.
+- Encodes at least three domain rules or invariants as professional expertise.
+- Gives judgment principles for ambiguity, conflicting evidence, and risk.
+- Defines communication behavior for normal results, domain rejection, risky writes, and partial failure.
+- Keeps IDENTITY.md compact while naming audience, outcomes, expertise, and a recognizable professional signature.
+- Keeps operating rules in AGENTS.md, professional character in SOUL.md, and identity facts in IDENTITY.md without duplicated paragraphs.
+
+Passing score: 9/10. Source-grounding, decision authority, and cross-file responsibility separation are mandatory.

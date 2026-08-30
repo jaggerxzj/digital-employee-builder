@@ -48,11 +48,13 @@ Analyze the project by user task and end-to-end business workflow, not by endpoi
 - source-test migration and traceability plan;
 - employee scope, approval boundaries, and forbidden operations.
 
+Then read `references/role-modeling.md` and derive a source-grounded Employee Role Brief: identity facts, success outcomes, four-level decision authority, professional expertise, judgment posture, communication contract, and capability-to-outcome map.
+
 Present a concise migration brief. Ask at most three decision-changing questions in one round, each with a recommended default.
 
 ### 3. Obtain the Required Approval
 
-Use one normal gate for the employee blueprint: positioning, user tasks, migration map, data plan, tools, skills, and exclusions.
+Use one normal gate for the employee blueprint: Employee Role Brief, user tasks, migration map, data plan, tools, skills, and exclusions.
 
 Add a separate **risk gate** only when the plan changes data ownership, performs destructive or real-world writes, introduces a new external contract, or handles regulated/sensitive data. On revisions, present the delta and changed consequences; do not repeat the complete inventory.
 
@@ -91,6 +93,8 @@ Use the assets in this skill and generate:
 
 Keep the source project's language and module boundaries when practical. For Python generation, start from `assets/embedded-runtime-python/`; for another language, reproduce the same ports-and-adapters contract in that language rather than translating automatically.
 
+Generate `IDENTITY.md`, `SOUL.md`, and `AGENTS.md` from the approved Employee Role Brief and their workspace templates. Apply the file responsibility map and specificity test in `references/role-modeling.md`; do not leave template choices, alternatives, examples, or unresolved placeholders in the delivered files.
+
 ### 5. Expose Capabilities by User Intent
 
 Read `references/mcp-integration.md` when generating MCP tools.
@@ -117,6 +121,7 @@ Verification must include:
 - local MCP initialize, tools/list, and representative tools/call checks;
 - dry-run, rejection, idempotency, and audit-result checks for dangerous writes;
 - identity, read-only task, write confirmation, and failure-escalation dialogue smoke tests;
+- role-artifact specificity: source-grounded success outcomes, all four authority levels, professional judgment, scenario behavior, and no cross-file paragraph duplication;
 - exact match between approved plan and delivered tools/skills.
 
 Record commands, results, retained external dependencies, and known limitations in `docs/harness-setup.md`.
@@ -126,6 +131,7 @@ Record commands, results, retained external dependencies, and known limitations 
 - `references/conversation-protocol.md` — interaction cadence, question batching, normal gate, and risk gate.
 - `references/migration-analysis.md` — repository analysis, user-task discovery, module classification, data ownership, and test provenance.
 - `references/embedded-runtime.md` — default agent-native architecture and packaging rules.
+- `references/role-modeling.md` — required before proposing or generating employee identity, SOUL.md, and AGENTS.md.
 - `references/script-encapsulation.md` — read only when the employee needs batch, scheduled, or CLI workflow scripts.
 - `references/mcp-integration.md` — read when exposing local or external capabilities as MCP tools.
 - `references/business-api-proposals.md` — read only when an unavoidable external interface is missing.
